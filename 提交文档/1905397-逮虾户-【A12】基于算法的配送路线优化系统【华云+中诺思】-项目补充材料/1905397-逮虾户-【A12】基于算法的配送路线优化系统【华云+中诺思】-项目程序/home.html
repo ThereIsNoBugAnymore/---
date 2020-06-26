@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="UTF-8">
+    <script type="text/javascript" src="./js/jquery-3.4.1.js"></script>
+    <script type="text/javascript" src="./js/xlsx.core.min.js"></script>
+    <script type="text/javascript" src="./js/home.js"></script>
+    <script src="./js/bootstrap-3.3.7/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="./js/bootstrap-3.3.7/css/bootstrap.min.css">
+    <title>配送路线优化</title>
+</head>
+<style type="text/css">
+table {
+    float: left;
+    width: 33%;
+}
+
+caption,
+th,
+td,
+h2 {
+    text-align: center;
+}
+
+.infoTable {
+    width: 100%;
+    margin: 10px 1%;
+}
+
+.tableContainer {
+    width: 80%;
+    float: left;
+}
+
+.btnContainer {
+    width: 20%;
+    float: left;
+}
+
+.btn {
+    width: 100%;
+    margin-top: 1px;
+    margin-bottom: 1px;
+}
+
+.infoPage {
+    width: 30%;
+    position: fixed;
+    left: 50%;
+    top: 20%;
+}
+
+.infoForm {
+    position: relative;
+    left: -50%;
+    width: 100%;
+    height: 100%;
+    background: #C1C1C3;
+    padding: 3px 15px 0px 15px;
+    border-radius: 10%;
+}
+
+#centerPage,
+#pointPage,
+#carPage {
+    display: none;
+}
+
+.centerTableContainer, .pointTableContainer, .carTableContainer {
+    width: 30%;
+    height: 300px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    float: left;
+    margin-left: 1.5%;
+    margin-right: 1.5%;
+}
+
+#centerFile, #pointFile, #carFile {
+    display: none;
+}
+</style>
+
+<body>
+    <div style="position: relative;">
+        <!-- 顶部数据信息区 -->
+        <div style="width: 100%; height: 300px;">
+            <div class="tableContainer">
+                <!-- 配送中心 -->
+                <div class="centerTableContainer">
+                    <table class="table table-striped table-hover infoTable center">
+                        <caption>配送中心信息</caption>
+                        <thead>
+                            <tr>
+                                <th>x轴坐标</th>
+                                <th>y轴坐标</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyCenter"></tbody>
+                        <tr>
+                            <td colspan="3">
+                                <button class="btn btn-default" onclick="showAddCenterPage()">添加</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="3">
+                                <button class="btn btn-default" onclick="javascript: $('#centerFile').click()">从文件中批量添加</button>
+                            </td>
+                        </tr>
+                    </table>
+                    <input id="centerFile" type="file" onchange="getCentersByFile(this)" />
+                </div>
+
+                <!-- 配送点 -->
+                <div class="pointTableContainer">
+                    <table class="table table-striped table-hover infoTable point">
+                        <caption>配送数据信息</caption>
+                        <thead>
+                            <tr>
+                                <th>x轴坐标</th>
+                                <th>y轴坐标</th>
+                                <th>配送量</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyPoint"></tbody>
+                        <tr>
+                            <td colspan="4">
+                                <button class="btn btn-default" onclick="showAddPointPage()">添加</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="4">
+                                <button class="btn btn-default" onclick="javascript:$('#pointFile').click()">从文件中批量添加</button>
+                            </td>
+                        </tr>
+                        <input id="pointFile" type="file" onchange="getPointsByFile(this)" />
+                    </table>
+                     
+                </div>
+                <!-- 载具信息 -->
+                <div class="carTableContainer">
+                    <table class="table table-striped table-hover infoTable car">
+                        <caption>载具信息</caption>
+                        <thead>
+                            <tr>
+                                <th>距离限制</th>
+                                <th>载重量</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyCar"></tbody>
+                        <tr>
+                            <td colspan="3">
+                                <button class="btn btn-default" onclick="showAddCarPage()">添加</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="3">
+                                <button class="btn btn-default" onclick="javascript:$('#carFile').click()">从文件中批量添加</button>
+                            </td>
+                        </tr>
+                        <input id="carFile" type="file" onchange="getCarsByFile(this)" />
+                    </table>
+                </div>
+            </div>
+            <div class="btnContainer">
+                <button class="btn btn-warning" onclick="submit()">提交</button>
+                <button class="btn btn-info" onclick="start()">绘制路径图</button>
+                <button class="btn btn-primary" onclick="bystep()">逐步</button>
+                <button class="btn btn-success" onclick="tryAgain()">路径重置</button>
+                <button class="btn btn-danger" onclick="reset()">数据重置</button>
+            </div>
+        </div>
+
+        <!-- 路径文字展示区 -->
+        <div style="width: 100%; padding: 10px 10px;" id="routeText">
+        </div>
+
+        <!-- 路径绘制去 -->
+        <div>
+            <canvas id="canvasContainer" width="1200" height="600" style="padding: 10px 10px;"></canvas>
+        </div>
+
+        <!-- 添加配送中心页面 -->
+        <div class="infoPage" id="centerPage">
+            <div class="infoForm">
+                <h2>添加配送中心</h2>
+                <form role="form" class="form-horizontal">
+                    <div class="form-group">
+                        <label for="center_x" class="col-sm-2 control-label">x坐标</label>
+                        <div class="col-sm-10">
+                            <input type="number" name="center_x" class="form-control" id="center_x" placeholder="x坐标" id="center_x">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="center_y" class="col-sm-2 control-label">y坐标</label>
+                        <div class="col-sm-10">
+                            <input type="number" name="center_y" class="form-control" id="center_y" placeholder="y坐标" id="center_y">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <button type="button" class="btn btn-info" onclick="addCenter()">添加</button>
+                        <button type="reset" class="btn btn-danger" onclick="hiddenAddCenterPage()">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 添加配送数据点页面 -->
+        <div class="infoPage" id="pointPage">
+            <div class="infoForm">
+                <h2>添加配送点</h2>
+                <form role="form" class="form-horizontal">
+                    <div class="form-group">
+                        <label for="point_x" class="col-sm-3 control-label">x坐标</label>
+                        <div class="col-sm-9">
+                            <input type="number" name="point_x" class="form-control" id="point_x" placeholder="x坐标">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="point_y" class="col-sm-3 control-label">y坐标</label>
+                        <div class="col-sm-9">
+                            <input type="number" name="point_y" class="form-control" id="point_y" placeholder="y坐标">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="point_amount" class="col-sm-3 control-label">配送量</label>
+                        <div class="col-sm-9">
+                            <input type="number" name="point_amount" class="form-control" id="point_amount" placeholder="配送量">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <button type="button" class="btn btn-info" onclick="addPoint()">添加</button>
+                        <button type="reset" class="btn btn-danger" onclick="hiddenAddPointPage()">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 添加配送中心页面 -->
+        <div class="infoPage" id="carPage">
+            <div class="infoForm">
+                <h2>添加载具信息</h2>
+                <form role="form" class="form-horizontal">
+                    <div class="form-group">
+                        <label for="car_distance" class="col-sm-4 control-label">最大运输距离</label>
+                        <div class="col-sm-8">
+                            <input type="number" name="car_distance" class="form-control" id="car_distance" placeholder="距离">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="car_amount" class="col-sm-4 control-label">最大载重量</label>
+                        <div class="col-sm-8">
+                            <input type="number" name="car_amount" class="form-control" id="car_amount" placeholder="载重量">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <button type="button" class="btn btn-info" onclick="addCar()">添加</button>
+                        <button type="reset" class="btn btn-danger" onclick="hiddenAddCarPage()">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
